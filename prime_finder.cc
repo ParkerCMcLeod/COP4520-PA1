@@ -11,9 +11,45 @@ Due date: Friday, January 26th by 11:59 PM
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <algorithm>
 
-void save_to_file(std::chrono::milliseconds execution_time, int total_primes, long long sum_of_primes, const std::vector<int>& ten_largest_primes_ascending) {
+
+void segmentedSieve(unsigned int l, unsigned int r, std::vector<bool>& prime_array, unsigned int& total_primes, unsigned long long& sum_of_primes) {
+
+    int sqrt_r = sqrt(r);
+
+    // regular sieve of eratosthenes to find primes up to sqrt(r)
+    prime_array[0] = prime_array[1] = false;
+    for (unsigned long long i = 2; i*i <= sqrt_r; i++) {
+        if (prime_array[i]) {
+            for (unsigned long long j = i*i; j <= sqrt_r; j += i)
+                prime_array[j] = false;
+
+            // apply the sieve to [l,r]
+            unsigned long long start = std::max(i * i, (l + i - 1) / i * i);
+            for (unsigned long long k = start; k <= r; k += i) {
+                prime_array[k - l] = false;
+            }
+        }
+    }
+
+    // collect primes in the segmented range
+    for (unsigned long long i = 0; i <= r - l; i++) {
+        if (prime_array[i]) {
+            total_primes++;
+            sum_of_primes += i + l;
+        }
+    }
+}
+
+void get_ten_largest_primes_ascending(unsigned int n, std::vector<bool>& prime_array, std::vector<unsigned int>& ten_largest_primes_ascending) {
+    // get the ten largest primes by traveling from top to bottom
+    for (unsigned long long i = n-1; i >= 2 && ten_largest_primes_ascending.size() < 10; i--) {
+        if (prime_array[i])
+            ten_largest_primes_ascending.push_back(i);
+    }
+}
+
+void save_to_file(std::chrono::milliseconds execution_time, int total_primes, long long sum_of_primes, const std::vector<unsigned int>& ten_largest_primes_ascending) {
     std::ofstream outFile("primes.txt");
     if (outFile.is_open()) {
         outFile << execution_time.count() << " " << total_primes << " " << sum_of_primes << std::endl;
@@ -30,6 +66,7 @@ void save_to_file(std::chrono::milliseconds execution_time, int total_primes, lo
     }
 }
 
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Incorrect number of parameters passed. Usage is prime_finder [n]." << std::endl;
@@ -45,29 +82,17 @@ int main(int argc, char *argv[]) {
     // timer start
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::vector<bool> A(n, true);
-    std::vector<int> ten_largest_primes_ascending;
-    long long sum_of_primes = 0;
-    int total_primes = 0;
+    std::vector<bool> prime_array(n, true);
 
-    // sieve of eratosthenes
-    for (unsigned long long i = 2; i < n; ++i) {
-        if (A[i]) {
-            total_primes++;
-            sum_of_primes += i;
+    std::vector<unsigned int> ten_largest_primes_ascending;
+    ten_largest_primes_ascending.reserve(10);
 
-            for (unsigned long long j = i * i; j < n; j += i) {
-                A[j] = false;
-            }
-        }
-    }
+    unsigned long long sum_of_primes = 0;
+    unsigned int total_primes = 0;
 
-    // get the ten largest primes by traveling from top to bottom
-    for (unsigned long long i = n-1; i >= 2 && ten_largest_primes_ascending.size() < 10; i--) {
-        if (A[i]) {
-            ten_largest_primes_ascending.push_back(i);
-        }
-    }
+    segmentedSieve(2, n, prime_array, total_primes, sum_of_primes);
+
+    get_ten_largest_primes_ascending(n, prime_array, ten_largest_primes_ascending);
 
     // timer end
     auto stop = std::chrono::high_resolution_clock::now();
