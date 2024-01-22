@@ -14,6 +14,9 @@ Due date: Friday, January 26th by 11:59 PM
 #include <vector>
 
 
+#define NUM_THREADS 8
+
+
 struct prime_struct {
     int start;
     int end;
@@ -22,7 +25,7 @@ struct prime_struct {
     unsigned int total_primes;
 };
 
-void create_array_sections(std::vector<prime_struct>& prime_struct_array, int n) {
+void create_sieve_sections(std::vector<prime_struct>& prime_struct_array, int n) {
 
     int num_sections = prime_struct_array.size();
 
@@ -126,17 +129,19 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    int num_threads = std::thread::hardware_concurrency();
+    int num_threads = std::thread::hardware_concurrency(); // dynamic max thread selection
     
     if (num_threads == 0) {
         std::cout << "Unable to determine the number of CPU threads." << std::endl;
         return 1;
     }
+
+    num_threads = NUM_THREADS; // adjusted for PA1 requirements
     
     std::vector<prime_struct> prime_struct_array(num_threads);
 
     // populate bool arrays and indicies within sections
-    create_array_sections(prime_struct_array, n);
+    create_sieve_sections(prime_struct_array, n);
 
     std::vector<std::thread> threads;
 
