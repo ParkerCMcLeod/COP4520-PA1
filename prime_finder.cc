@@ -49,35 +49,39 @@ void create_array_sections(std::vector<prime_struct>& prime_struct_array, int n)
 // implementation via https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes#Segmented_sieve
 void segmented_sieve(prime_struct& prime) {
 
-    unsigned long long l = prime.start;
     unsigned long long r = prime.end;
     unsigned long long sqrt_r = sqrt(r);
+    std::vector<bool> is_prime_sqrt_r(sqrt_r + 1, true);
 
     // 0 and 1 are not prime
     if(prime.start == 0)
         prime.is_prime_array[0] = prime.is_prime_array[1] = false;
 
     // regular sieve of eratosthenes to find primes up to sqrt(r)
-    for (unsigned long long i = 2; i*i <= sqrt_r; i++) {
-        if (prime.is_prime_array[i]) {
-            for (unsigned long long j = i*i; j <= sqrt_r; j += i)
-                prime.is_prime_array[j] = false;
+    for (unsigned long long i = 2; i * i <= sqrt_r; ++i) {
+        if (is_prime_sqrt_r[i]) {
+            for (unsigned long long j = i * i; j <= sqrt_r; j += i)
+                is_prime_sqrt_r[j] = false;
+        }
+    }
 
-            // apply the sieve to [l,r]
-            unsigned long long start = std::max(i * i, (l + i - 1) / i * i);
-            for (unsigned long long k = start; k <= r; k += i) {
-                prime.is_prime_array[k - l] = false;
+    // apply the sieve to [l,r]
+    for (unsigned long long i = 2; i <= sqrt_r; ++i) {
+        if (is_prime_sqrt_r[i]) {
+            unsigned long long start = std::max(i * i, (prime.start + i - 1) / i * i);
+            for (unsigned long long k = start; k < prime.end; k += i) {
+                prime.is_prime_array[k - prime.start] = false;
             }
         }
     }
 
-    // collect primes in the segmented range
-    for (unsigned long long i = 0; i <= r - l; i++) {
+    for (unsigned long long i = 0; i < prime.is_prime_array.size(); ++i) {
         if (prime.is_prime_array[i]) {
             prime.total_primes++;
-            prime.sum_of_primes += i + l;
+            prime.sum_of_primes += i + prime.start;
         }
     }
+
 }
 
 // get ten largest primes from prime array
