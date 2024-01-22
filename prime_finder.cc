@@ -41,7 +41,7 @@ void create_array_sections(std::vector<prime_struct>& prime_struct_array, int n)
         prime_struct_array[i].end = end;
 
         // create/store sections
-        prime_struct_array[i].is_prime_array = std::vector<bool>(start, end);
+        prime_struct_array[i].is_prime_array = std::vector<bool>(end-start, true);
     }
 
 }
@@ -49,11 +49,9 @@ void create_array_sections(std::vector<prime_struct>& prime_struct_array, int n)
 // implementation via https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes#Segmented_sieve
 void segmented_sieve(prime_struct& prime) {
 
-    unsigned int l = prime.start;
-    unsigned int r = prime.end;
-
-
-    int sqrt_r = sqrt(r);
+    unsigned long long l = prime.start;
+    unsigned long long r = prime.end;
+    unsigned long long sqrt_r = sqrt(r);
 
     // 0 and 1 are not prime
     if(prime.start == 0)
@@ -126,9 +124,10 @@ int main(int argc, char *argv[]) {
 
     int num_threads = std::thread::hardware_concurrency();
     
-    if (num_threads == 0) 
+    if (num_threads == 0) {
         std::cout << "Unable to determine the number of CPU threads." << std::endl;
         return 1;
+    }
     
     std::vector<prime_struct> prime_struct_array(num_threads);
 
@@ -139,23 +138,26 @@ int main(int argc, char *argv[]) {
 
     // create and start the threads
     for (int i = 0; i < num_threads; ++i) {
-        threads.push_back(std::thread(segmented_sieve, prime_struct_array[i]));
+        threads.push_back(std::thread(segmented_sieve, std::ref(prime_struct_array[i])));
     }
 
     // wait for threads to complete
-    for (int i = 0; i < num_threads; ++i) {
-        threads[i].join();
+    for (std::thread &th : threads) {
+        th.join();
     }
 
-    std::vector<bool> joined_prime_arrays = {};
+    std::vector<bool> joined_prime_arrays;
+    joined_prime_arrays.reserve(n);
+    unsigned int joined_total_primes = 0;
+    unsigned long long joined_sum_of_primes = 0;
 
-    // join back arrays here
-    for(int i=0; i<prime_struct_array.size(); i++) {
-        joined_prime_arrays.insert(joined_prime_arrays.end(), prime_struct_array[i].is_prime_array.begin(), prime_struct_array[i].is_prime_array.end());
+    // join back data here
+    for(const auto& prime : prime_struct_array) {
+        joined_prime_arrays.insert(joined_prime_arrays.end(), prime.is_prime_array.begin(), prime.is_prime_array.end());
+        joined_total_primes += prime.total_primes;
+        joined_sum_of_primes += prime.sum_of_primes;
     }
 
-    unsigned long long sum_of_primes = 0;
-    unsigned int total_primes = 0;
     std::vector<unsigned int> ten_largest_primes_ascending;
     ten_largest_primes_ascending.reserve(10);
 
@@ -165,7 +167,7 @@ int main(int argc, char *argv[]) {
 
     auto execution_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-    save_to_file(execution_time, total_primes, sum_of_primes, ten_largest_primes_ascending);
+    save_to_file(execution_time, joined_total_primes, joined_sum_of_primes, ten_largest_primes_ascending);
 
     return 0;
 }
