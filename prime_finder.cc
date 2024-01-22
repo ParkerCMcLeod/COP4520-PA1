@@ -10,10 +10,33 @@ Due date: Friday, January 26th by 11:59 PM
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <thread>
 #include <vector>
 
 
-void segmentedSieve(unsigned int l, unsigned int r, std::vector<bool>& prime_array, unsigned int& total_primes, unsigned long long& sum_of_primes) {
+std::vector<std::vector<int>> create_array_sections(int n, int num_sections) {
+    std::vector<std::vector<int>> sections(num_sections);
+
+    // calculate section sizes 
+    int sectionSize = n / num_sections;
+    int extra = n % num_sections;
+    
+    // indicies
+    int start = 0, end = 0;
+
+    for (int i = 0; i < num_sections; ++i) {
+        start = end; // pickup where the last section left off
+        end += sectionSize + (i < extra); // extra element for first 'extra' sections
+
+        // create/store sections
+        sections[i] = std::vector<int>(start, end);
+    }
+
+    return std::move(sections); // to avoid copying over data (slower)
+}
+
+// implementation via https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes#Segmented_sieve
+void segmented_sieve(unsigned int l, unsigned int r, std::vector<bool>& prime_array, unsigned int& total_primes, unsigned long long& sum_of_primes) {
 
     int sqrt_r = sqrt(r);
 
@@ -41,6 +64,7 @@ void segmentedSieve(unsigned int l, unsigned int r, std::vector<bool>& prime_arr
     }
 }
 
+// get ten largest primes from prime array
 void get_ten_largest_primes_ascending(unsigned int n, std::vector<bool>& prime_array, std::vector<unsigned int>& ten_largest_primes_ascending) {
     // get the ten largest primes by traveling from top to bottom
     for (unsigned long long i = n-1; i >= 2 && ten_largest_primes_ascending.size() < 10; i--) {
@@ -49,6 +73,7 @@ void get_ten_largest_primes_ascending(unsigned int n, std::vector<bool>& prime_a
     }
 }
 
+// save to the file in specified format
 void save_to_file(std::chrono::milliseconds execution_time, int total_primes, long long sum_of_primes, const std::vector<unsigned int>& ten_largest_primes_ascending) {
     std::ofstream outFile("primes.txt");
     if (outFile.is_open()) {
@@ -79,10 +104,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // timer start
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::vector<bool> prime_array(n, true);
+    unsigned int num_threads = std::thread::hardware_concurrency();
+    
+    if (num_threads == 0) 
+        std::cout << "Unable to determine the number of CPU threads." << std::endl;
+        return 1;
+    
+    // std::vector<bool> prime_array(n, true);
+
+    std::vector<std::vector<int>> prime_array_sections = create_array_sections(n, num_threads);
 
     std::vector<unsigned int> ten_largest_primes_ascending;
     ten_largest_primes_ascending.reserve(10);
@@ -90,17 +122,28 @@ int main(int argc, char *argv[]) {
     unsigned long long sum_of_primes = 0;
     unsigned int total_primes = 0;
 
-    segmentedSieve(2, n, prime_array, total_primes, sum_of_primes);
+    std::vector<std::thread> threads;
+
+    // create and start the threads
+    for (int i = 0; i < num_threads; ++i) {
+        threads.push_back(std::thread(segmented_sieve, i));
+    }
+
+    // wait for threads to complete
+    for (int i = 0; i < num_threads; ++i) {
+        threads[i].join();
+    }
+
+    // join back arrays here
+
+    segmented_sieve(2, n, prime_array, total_primes, sum_of_primes);
 
     get_ten_largest_primes_ascending(n, prime_array, ten_largest_primes_ascending);
 
-    // timer end
     auto stop = std::chrono::high_resolution_clock::now();
 
-    // timer calc
     auto execution_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-    // save vars, formatted to spec
     save_to_file(execution_time, total_primes, sum_of_primes, ten_largest_primes_ascending);
 
     return 0;
