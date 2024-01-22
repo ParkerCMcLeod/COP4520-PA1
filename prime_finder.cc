@@ -14,8 +14,17 @@ Due date: Friday, January 26th by 11:59 PM
 #include <vector>
 
 
-std::vector<std::vector<int>> create_array_sections(int n, int num_sections) {
-    std::vector<std::vector<int>> sections(num_sections);
+struct prime_struct {
+    int start;
+    int end;
+    std::vector<bool> is_prime_array;
+    unsigned long long sum_of_primes;
+    unsigned int total_primes;
+};
+
+void create_array_sections(std::vector<prime_struct>& prime_struct_array, int n) {
+
+    int num_sections = prime_struct_array.size();
 
     // calculate section sizes 
     int sectionSize = n / num_sections;
@@ -26,40 +35,49 @@ std::vector<std::vector<int>> create_array_sections(int n, int num_sections) {
 
     for (int i = 0; i < num_sections; ++i) {
         start = end; // pickup where the last section left off
+        prime_struct_array[i].start = start;
+        
         end += sectionSize + (i < extra); // extra element for first 'extra' sections
+        prime_struct_array[i].end = end;
 
         // create/store sections
-        sections[i] = std::vector<int>(start, end);
+        prime_struct_array[i].is_prime_array = std::vector<bool>(start, end);
     }
 
-    return std::move(sections); // to avoid copying over data (slower)
 }
 
 // implementation via https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes#Segmented_sieve
-void segmented_sieve(unsigned int l, unsigned int r, std::vector<bool>& prime_array, unsigned int& total_primes, unsigned long long& sum_of_primes) {
+void segmented_sieve(prime_struct& prime) {
+
+    unsigned int l = prime.start;
+    unsigned int r = prime.end;
+
 
     int sqrt_r = sqrt(r);
 
+    // 0 and 1 are not prime
+    if(prime.start == 0)
+        prime.is_prime_array[0] = prime.is_prime_array[1] = false;
+
     // regular sieve of eratosthenes to find primes up to sqrt(r)
-    prime_array[0] = prime_array[1] = false;
     for (unsigned long long i = 2; i*i <= sqrt_r; i++) {
-        if (prime_array[i]) {
+        if (prime.is_prime_array[i]) {
             for (unsigned long long j = i*i; j <= sqrt_r; j += i)
-                prime_array[j] = false;
+                prime.is_prime_array[j] = false;
 
             // apply the sieve to [l,r]
             unsigned long long start = std::max(i * i, (l + i - 1) / i * i);
             for (unsigned long long k = start; k <= r; k += i) {
-                prime_array[k - l] = false;
+                prime.is_prime_array[k - l] = false;
             }
         }
     }
 
     // collect primes in the segmented range
     for (unsigned long long i = 0; i <= r - l; i++) {
-        if (prime_array[i]) {
-            total_primes++;
-            sum_of_primes += i + l;
+        if (prime.is_prime_array[i]) {
+            prime.total_primes++;
+            prime.sum_of_primes += i + l;
         }
     }
 }
@@ -106,27 +124,22 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    unsigned int num_threads = std::thread::hardware_concurrency();
+    int num_threads = std::thread::hardware_concurrency();
     
     if (num_threads == 0) 
         std::cout << "Unable to determine the number of CPU threads." << std::endl;
         return 1;
     
-    // std::vector<bool> prime_array(n, true);
+    std::vector<prime_struct> prime_struct_array(num_threads);
 
-    std::vector<std::vector<int>> prime_array_sections = create_array_sections(n, num_threads);
-
-    std::vector<unsigned int> ten_largest_primes_ascending;
-    ten_largest_primes_ascending.reserve(10);
-
-    unsigned long long sum_of_primes = 0;
-    unsigned int total_primes = 0;
+    // populate bool arrays and indicies within sections
+    create_array_sections(prime_struct_array, n);
 
     std::vector<std::thread> threads;
 
     // create and start the threads
     for (int i = 0; i < num_threads; ++i) {
-        threads.push_back(std::thread(segmented_sieve, i));
+        threads.push_back(std::thread(segmented_sieve, prime_struct_array[i]));
     }
 
     // wait for threads to complete
@@ -134,11 +147,19 @@ int main(int argc, char *argv[]) {
         threads[i].join();
     }
 
+    std::vector<bool> joined_prime_arrays = {};
+
     // join back arrays here
+    for(int i=0; i<prime_struct_array.size(); i++) {
+        joined_prime_arrays.insert(joined_prime_arrays.end(), prime_struct_array[i].is_prime_array.begin(), prime_struct_array[i].is_prime_array.end());
+    }
 
-    segmented_sieve(2, n, prime_array, total_primes, sum_of_primes);
+    unsigned long long sum_of_primes = 0;
+    unsigned int total_primes = 0;
+    std::vector<unsigned int> ten_largest_primes_ascending;
+    ten_largest_primes_ascending.reserve(10);
 
-    get_ten_largest_primes_ascending(n, prime_array, ten_largest_primes_ascending);
+    get_ten_largest_primes_ascending(n, joined_prime_arrays, ten_largest_primes_ascending);
 
     auto stop = std::chrono::high_resolution_clock::now();
 
