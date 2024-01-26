@@ -4,6 +4,18 @@ Windows Command Prompt Compilation/Execution:
     Execution: prime_finder
     Unified: g++ -std=c++11 -pthread -o prime_finder prime_finder.cc && prime_finder 100000000
 
+Linux Bash Shell Compilation/Execution:
+
+    Compilation: g++ -std=c++11 -pthread -o prime_finder prime_finder.cc
+    Execution: ./prime_finder
+    Unified: g++ -std=c++11 -pthread -o prime_finder prime_finder.cc && ./prime_finder 100000000
+
+PowerShell Compilation/Execution:
+
+    Compilation: g++ -std=c++11 -pthread -o prime_finder prime_finder.cc
+    Execution: .\prime_finder
+    Unified: g++ -std=c++11 -pthread -o prime_finder prime_finder.cc; if ($?) { .\prime_finder 100000000 }
+
 Output Formatting:
 
     <execution time in ms> <total number of primes found> <sum of all primes found>
@@ -12,7 +24,8 @@ Output Formatting:
 Proof of Correctness: 
 
     Verified correct final ten primes were printed via http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
-    Verified Sieve of Eratosthenes single threaded application results matched Mutithreaded Segmented Sieve 
+    Verified my Sieve of Eratosthenes single threaded application results matched Mutithreaded Segmented Sieve
+    Made sure to avoid all potential race conditions by making all resources independent per thread.
     Verified results of the number of primes and sum by comparing to python3 implementation found here: https://www.geeksforgeeks.org/sum-of-all-the-prime-numbers-in-a-given-range/
 
 Statement:
@@ -22,4 +35,4 @@ Statement:
 
 Experimental Evaluations:
 
-    Initially, I implemented the standard sieve using a single thread. Subsequently, I progressed to the segmented sieve, and then to a multithreaded version. During these stages, I experimented with various optimization techniques, including preallocation, sorting, reference passing, and the selection of appropriate data structures for thread communication. Bool arrays proved to be the most efficient in terms of both speed and size, occupying just one byte each. To further enhance efficiency, I utilized std::vec, prioritizing minimal copying and preallocating memory to circumvent the need for resizing.
+    Initially, I implemented the standard sieve using a single thread. Subsequently, I progressed to the segmented sieve, and then to a multithreaded version. During these stages, I experimented with various optimization techniques, including preallocation, sorting, reference passing, and the selection of appropriate data structures for thread communication. Bool arrays proved to be the most efficient in terms of both speed and size, occupying just one byte each. To further enhance efficiency, I utilized std::vec, prioritizing minimal copying and preallocating memory to circumvent the need for resizing. This strucutre also allowed for me to break up and finally combine each thread's individual results.
